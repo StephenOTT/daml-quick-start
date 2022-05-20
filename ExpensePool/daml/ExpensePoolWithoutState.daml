@@ -1,0 +1,49 @@
+module ExpensePoolWithoutState where
+
+type PoolKey = (Party, Text)
+
+template Pool 
+    with
+        poolId: Text
+        owner: Party
+        name: Text
+    where
+        signatory owner           
+
+        key(owner, poolId): PoolKey
+        maintainer key._1
+
+        nonconsuming choice InviteNewParticipant : ContractId PoolInvite
+            with
+                newParticipant: Party
+            controller owner
+            do
+                create PoolInvite with
+                    poolKey = key(this)
+                    newParticipant
+
+
+template PoolInvite
+    with
+        poolKey: PoolKey
+        newParticipant: Party
+    where
+        signatory poolKey._1 -- The pool owner
+        observer newParticipant
+
+        choice AcceptInvite : ContractId PoolParticipant
+            controller newParticipant
+            do
+                create PoolParticipant with
+                    poolKey
+                    participant = newParticipant
+        
+
+template PoolParticipant
+    with
+        poolKey: PoolKey
+        participant: Party
+    where
+        signatory participant, poolKey._1
+        observer poolKey._1 -- Pool owner
+        -- @TODO: How do you prevent people from creating a PoolParticipant unless it is a contract converting from a PoolInvite?

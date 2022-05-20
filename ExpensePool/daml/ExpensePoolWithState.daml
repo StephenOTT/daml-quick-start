@@ -1,0 +1,71 @@
+module ExpensePoolWithState where
+
+import DA.Set as Set
+
+type PoolKey = (Party, Text)
+
+template Pool 
+    with
+        poolId: Text
+        owner: Party
+        name: Text
+        participants: Set Party
+        invitedParticipants: Set Party
+    where
+        signatory owner
+        observer participants, invitedParticipants
+
+        ensure do
+            -- Cannot have overlap between the two lists:
+            Set.null(Set.intersection participants invitedParticipants)
+            
+
+        key(owner, poolId): PoolKey
+        maintainer key._1
+
+        choice InviteNewParticipant : ContractId Pool
+            with
+                newParticipant: Party
+            controller owner
+            do
+                create PoolInvite with
+                    poolKey = key(this)
+                    newParticipant
+                
+                create this -- recreate the pool with the invited participant : This is required because of Observers being able to Accept the Invite.
+                    with
+                        owner
+                        name
+                        participants
+                        invitedParticipants = Set.insert newParticipant invitedParticipants
+
+
+        choice InviteAccept : ContractId Pool
+            with
+                invite: PoolInvite
+            controller invite.newParticipant
+            do
+                assertMsg "Invite is not from current pool owner." (invite.poolKey == key(this)) -- Assumes that if the owner changes than existing invites become invalid
+                create this 
+                    with
+                    poolId
+                    owner
+                    name
+                    participants = Set.insert invite.newParticipant participants
+                    invitedParticipants = Set.delete invite.newParticipant invitedParticipants
+
+
+template PoolInvite
+    with
+        poolKey: PoolKey
+        newParticipant: Party
+    where
+        signatory poolKey._1 -- The pool owner
+        observer newParticipant
+
+        choice AcceptInvite : ContractId Pool
+            controller newParticipant
+            do
+                -- This works because the invitee is part of the invitedParticiants Set in the Pool, which is an observer of the pool.
+                exerciseByKey @Pool poolKey InviteAccept with 
+                    invite = this

@@ -1,0 +1,16 @@
+module Main where
+
+import Daml.Script
+
+setup = script do
+    alice <- allocatePartyWithHint "Alice" (PartyIdHint "Alice")
+    aliceId <- validateUserId "alice"
+    createUser (User aliceId (Some alice)) [CanActAs alice]
+
+    bob <- allocatePartyWithHint "Bob" (PartyIdHint "Bob")
+    bobId <- validateUserId "bob"
+    createUser (User bobId (Some bob)) [CanActAs bob]
+
+    companyA <- allocatePartyWithHint "CompanyA" (PartyIdHint "CompanyA")
+    companyAId <- validateUserId "companya"
+    createUser (User companyAId (Some companyA)) [CanActAs companyA]
