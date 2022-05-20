@@ -54,8 +54,6 @@ template Pool
 #### Pool
 |id                                                                   |status                                                               |poolId   |owner  |name |participants.map |invitedParticipants.map|ALICE|BOB|
 |---------------------------------------------------------------------|---------------------------------------------------------------------|---------|-------|-----|-----------------|-----------------------|------|------|
-|Alice                                                                |                                                                     |         |       |     |                 |                       |      |      |
-|Bob                                        a                          |                                                                     |         |       |     |                 |                       |      |      |
 |#0:0                                                                 |archived                                                             |pool-1234|'Alice'|Pool1|GenMap[]         |GenMap[]               |S     |-     |
 |#1:1                                                                 |archived                                                             |pool-1234|'Alice'|Pool1|GenMap[]         |GenMap['Bob'->{}]      |S     |O     |
 |#2:3                                                                 |archived                                                             |pool-1234|'Alice'|Pool1|GenMap[]         |GenMap[]               |S     |W     |
@@ -69,8 +67,6 @@ template Pool
 
 |id   |status  |poolKey._1|poolKey._2|newParticipant|ALICE|BOB|
 |-----|--------|----------|----------|--------------|------|------|
-|Alice|        |          |          |              |      |      |
-|Bob  |        |          |          |              |      |      |
 |#1:2 |archived|'Alice'   |pool-1234 |'Bob'         |S     |O     |
 |#3:2 |archived|'Alice'   |pool-1234 |'Bob'         |S     |O     |
 |#6:2 |archived|'Alice'   |pool-1234 |'Bob'         |S     |O     |
