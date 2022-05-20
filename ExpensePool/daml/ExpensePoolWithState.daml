@@ -1,8 +1,12 @@
 module ExpensePoolWithState where
 
-import DA.Set as Set
+import Daml.Script
+
+import DA.Set (Set)
+import DA.Set qualified as Set
 
 type PoolKey = (Party, Text)
+type InviteKey = (PoolKey, Party)
 
 template Pool 
     with
@@ -23,29 +27,31 @@ template Pool
         key(owner, poolId): PoolKey
         maintainer key._1
 
-        choice InviteNewParticipant : ContractId Pool
+        choice InviteNewParticipant : (ContractId Pool, ContractId PoolInvite)
             with
                 newParticipant: Party
             controller owner
             do
-                create PoolInvite with
-                    poolKey = key(this)
-                    newParticipant
-                
-                create this -- recreate the pool with the invited participant : This is required because of Observers being able to Accept the Invite.
+                newPool <- create this -- recreate the pool with the invited participant : This is required because of Observers being able to Accept the Invite.
                     with
                         owner
                         name
                         participants
                         invitedParticipants = Set.insert newParticipant invitedParticipants
-
+                
+                invite <- create PoolInvite with
+                    poolKey = key(this)
+                    newParticipant
+                
+                return (newPool, invite)
 
         choice InviteAccept : ContractId Pool
             with
                 invite: PoolInvite
             controller invite.newParticipant
             do
-                assertMsg "Invite is not from current pool owner." (invite.poolKey == key(this)) -- Assumes that if the owner changes than existing invites become invalid
+                assertMsg "New Participant is not part of invited participants." (Set.member invite.newParticipant invitedParticipants)
+                assertMsg "Invite is not from current pool owner." (invite.poolKey == key(this)) -- Assumes that if the owner changes than existing invites become invalid.  This line could be removed if you dont care about owner changes.
                 create this 
                     with
                     poolId
@@ -53,6 +59,44 @@ template Pool
                     name
                     participants = Set.insert invite.newParticipant participants
                     invitedParticipants = Set.delete invite.newParticipant invitedParticipants
+
+        choice RemoveParticipant : ContractId Pool
+            with
+                participantToRemove: Party
+            controller owner
+            do
+                assertMsg "Participant you want to remove is not in the list of participants for this pool" 
+                    (Set.member participantToRemove participants)
+
+                create this with
+                    poolId
+                    owner
+                    name
+                    participants = Set.delete participantToRemove participants
+                    invitedParticipants 
+
+
+        choice RemoveInvitedParticipant : ContractId Pool
+            with
+                participantToRemove: Party
+            controller owner
+            do
+                assertMsg "Participant you want to remove is not in the list of participants for this pool" 
+                    (Set.member participantToRemove invitedParticipants)
+                
+                -- Generates the invite Key + archives the invite: essentially revoking the invite
+                let inviteKey = (key(this), participantToRemove):InviteKey
+                invite <- fetchByKey @PoolInvite inviteKey
+                exerciseByKey @PoolInvite inviteKey Archive
+
+                -- recreates the Pool with the invitee removed
+                create this with
+                    poolId
+                    owner
+                    name
+                    participants
+                    invitedParticipants = Set.delete participantToRemove invitedParticipants
+
 
 
 template PoolInvite
@@ -63,9 +107,92 @@ template PoolInvite
         signatory poolKey._1 -- The pool owner
         observer newParticipant
 
+        key(poolKey, newParticipant): InviteKey
+        maintainer key._1._1 -- Pool owner
+
         choice AcceptInvite : ContractId Pool
             controller newParticipant
             do
                 -- This works because the invitee is part of the invitedParticiants Set in the Pool, which is an observer of the pool.
                 exerciseByKey @Pool poolKey InviteAccept with 
                     invite = this
+
+
+
+normalFlow = script do
+    alice <- allocateParty "Alice"
+    bob <- allocateParty "Bob"
+    
+    -- Create a pool:
+    emptyPool1Cid <- submit alice do 
+        createCmd Pool with 
+            poolId = "pool-1234"
+            owner = alice
+            name = "Pool1"
+            participants = Set.empty
+            invitedParticipants = Set.empty
+
+
+    -- Invite Bob to the Pool:
+    (updatedPool1Cid, invite1Cid) <- submit alice do 
+        exerciseCmd emptyPool1Cid InviteNewParticipant with 
+            newParticipant = bob
+
+    Some _updatedPool <- queryContractId alice updatedPool1Cid
+    assert(Set.member bob _updatedPool.invitedParticipants)
+
+
+    -- Revoke Bob's invite:
+    emptyPool2Cid <- submit alice do 
+        exerciseCmd updatedPool1Cid RemoveInvitedParticipant with
+            participantToRemove = bob
+    
+    Some _updatedPool <- queryContractId alice emptyPool2Cid
+    assert(Set.notMember bob _updatedPool.invitedParticipants)
+
+
+    -- Re-Invite Bob to the Pool:
+    (updatedPool2Cid, invite2Cid) <- submit alice do 
+        exerciseCmd emptyPool2Cid InviteNewParticipant with 
+            newParticipant = bob
+
+    Some _updatedPool <- queryContractId alice updatedPool2Cid
+    assert(Set.member bob _updatedPool.invitedParticipants)
+
+
+    -- Bob accepts invite:
+    updatedPool3Cid <- submit bob do 
+        exerciseCmd invite2Cid AcceptInvite
+
+    Some _updatedPool <- queryContractId alice updatedPool3Cid
+    assert(Set.member bob _updatedPool.participants)
+    assert(Set.notMember bob _updatedPool.invitedParticipants)
+
+
+    -- Remove Bob as a participant:
+    emptyPool3Cid <- submit alice do 
+        exerciseCmd updatedPool3Cid RemoveParticipant with
+            participantToRemove = bob
+
+    Some _updatedPool <- queryContractId alice emptyPool3Cid
+    assert(Set.notMember bob _updatedPool.participants)
+
+
+    -- Re-Invite Bob to the Pool:
+    (updatedPool4Cid, invite3Cid) <- submit alice do 
+        exerciseCmd emptyPool3Cid InviteNewParticipant with 
+            newParticipant = bob
+    
+    Some _updatedPool <- queryContractId alice updatedPool4Cid
+    assert(Set.member bob _updatedPool.invitedParticipants)
+
+
+    -- Bob accepts invite:
+    updatedPool5Cid <- submit bob do 
+        exerciseCmd invite3Cid AcceptInvite
+
+    -- Final pool should have bob as a participant
+    Some finalPool <- queryContractId bob updatedPool5Cid
+    assert(Set.member bob finalPool.participants)
+    assert(Set.notMember bob finalPool.invitedParticipants)
+    assert(Set.null finalPool.invitedParticipants)
