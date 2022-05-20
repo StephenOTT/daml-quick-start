@@ -22,17 +22,6 @@ template Pool
 ...
 ```
 
-## Script Result
-
-
-
-## Transactions:
-
-```
-
-```
-
-
 ## Expense Pool without State
 
 Templates that supports creation of nonconsuming Pool Invites for new participants but the participants are not stored in the pool.  Instead the participants are stored as standalone contracts.
