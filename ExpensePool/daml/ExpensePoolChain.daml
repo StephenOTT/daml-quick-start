@@ -1,0 +1,135 @@
+module ExpensePoolChain where
+
+{-
+Example of using authorization chains from Pool > PoolInvite > PoolMember > Expense.
+Where the "org" signatory of the pool is passed into each ~sub-contract (from a business process perspective).
+The org (or equivalent) would be a stable/unchanging party.
+
+-}
+
+import Daml.Script
+
+type PoolKey = (Party, Text)
+type MemberKey = (Party, Text, Party)
+
+template Pool 
+    with
+        org: Party
+        poolMemberRole: Party
+        owner: Party
+        poolId: Text -- Never changes
+        name: Text
+    where
+        signatory org
+        observer owner, poolMemberRole
+
+        key(org, poolId): PoolKey
+        maintainer key._1
+
+        nonconsuming choice InviteNewMember : ContractId PoolInvite
+            with
+                newMember: Party
+            controller owner
+            do
+                create PoolInvite with
+                    org
+                    poolId
+                    newMember
+
+        nonconsuming choice AddExpense : ContractId Expense
+            with
+                member: Party
+                expense: Int
+            controller member
+            do  
+                membership <- fetchByKey @PoolMember (org, poolId, member)
+
+                create Expense with
+                    poolKey = key(this)
+                    poolMemberRole = poolMemberRole
+                    member
+                    expense
+            
+
+
+-- Expected to be created through a choice in Pool
+template Expense
+    with
+        poolKey: PoolKey
+        poolMemberRole: Party
+        member: Party
+        expense: Int
+    where
+        signatory poolKey._1, member -- Org and Member
+
+-- Expected to be created through a choice in Pool
+template PoolInvite
+    with
+        org: Party
+        poolId: Text
+        newMember: Party
+    where
+        signatory org
+        observer newMember
+
+        choice AcceptInvite : ContractId PoolMember
+            controller newMember
+            do
+                create PoolMember with
+                    org
+                    poolId
+                    member = newMember
+        
+-- Expected to be created through a choice in PoolInvite (where pool invite was created through the pool)
+template PoolMember
+    with
+        org: Party
+        poolId: Text
+        member: Party
+    where
+        signatory org, member
+        
+        key(org, poolId, member): MemberKey
+        maintainer key._1
+
+
+
+normalFlow = script do
+    [alice, bob, org, pool_member] <- mapA allocateParty ["Alice", "Bob", "Org", "POOL_MEMBER"]
+
+    let poolId = "pool-1234"
+
+    -- Create a pool:
+    poolCid <- submitMulti [org] [] do
+        createCmd Pool with 
+            org
+            poolMemberRole = pool_member
+            owner = alice
+            poolId = poolId
+            name = "Pool1"
+
+    -- Invite Bob to the Pool:
+    invite1Cid <- submitMulti [alice] [] do 
+        exerciseCmd poolCid InviteNewMember with 
+            newMember = bob
+
+    -- Bob accepts invite:
+    poolMemberCid <- submitMulti [bob] [] do 
+        exerciseCmd invite1Cid AcceptInvite
+
+    -- Test comparing signatories:
+    Some (bobsMemCid, bobsMem) <- queryContractKey @PoolMember bob (org, poolId, bob)
+    Some (bobsPoolCid, bobsPool) <- queryContractKey @Pool [org] (org, poolId)
+    let sigsMatch: Bool = signatory(bobsMem) == signatory(bobsPool) -- A pool and membership have same signatories
+
+    -- Querying for the pool as a "pool_member"
+    Some (bobsPoolAsMemberCid, bobsPoolAsMember) <- queryContractKey @Pool [bob, pool_member] (org, poolId)
+
+    -- Because the IAM would provide bob with the pool_member readAs pool_member permission.
+    -- Permission would have been determined by bob having an active PoolMember contract signed by the Pool org.
+    bobsExpense <- submitMulti [bob] [pool_member] do
+        exerciseByKeyCmd @Pool (org, poolId) AddExpense with
+            member = bob
+            expense = 22
+
+    return ()
