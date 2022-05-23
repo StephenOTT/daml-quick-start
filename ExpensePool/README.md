@@ -1,6 +1,10 @@
 # Expense Pool Examples
 
 
+## Expense Pool Chain (roles)
+
+Each choice is nonconsuming: it uses the layering of signatories on each "sub-contract" and the role-contract pattern to establish a party that is allowed to read the original pool contract.  The Party is used as a role that the IAM would provide within the "readAs" prop of the user's permissions.  Part of Multi-Party Submissions feature of daml.
+
 
 ## Expense Pool with State
 

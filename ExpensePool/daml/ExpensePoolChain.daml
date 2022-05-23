@@ -12,6 +12,7 @@ import Daml.Script
 type PoolKey = (Party, Text)
 type MemberKey = (Party, Text, Party)
 
+
 template Pool 
     with
         org: Party
