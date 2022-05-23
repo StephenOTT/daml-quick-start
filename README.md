@@ -2,6 +2,21 @@
 
 
 
+# Links:
+
+Namespacing your Daml Files: https://discuss.daml.com/t/managing-namespaces-in-daml/1984
+
+`do` and `<-` arrows: what do they do and why: https://discuss.daml.com/t/if-you-are-not-100-sure-about-do-blocks-notation-and-return-you-should-read-this/968
+
+How to get Choice Params when building a UI: https://discuss.daml.com/t/daml-ui-template-multiple-parameter-choices-dialog-generation/506
+
+ENT Data Orchestration: https://discuss.daml.com/t/great-blog-post-daml-smartcontracts-for-enterprise-data-orchestration-and-analytics-1/537
+
+When and where to add Attachments: https://discuss.daml.com/t/on-attachments-what-you-should-and-shouldnt-store-on-a-ledger/579
+
+
+
+
 # Concepts
 
 
