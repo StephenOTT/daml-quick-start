@@ -93,6 +93,12 @@ template PoolMember
         key(org, poolId, member): MemberKey
         maintainer key._1
 
+        nonconsuming choice GetPool : (ContractId Pool, Pool)
+            controller org
+            do
+                (id, cData) <- fetchByKey @Pool (org, poolId)
+                return (id, cData)
+
 
 
 normalFlow = script do

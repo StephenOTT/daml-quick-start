@@ -1,0 +1,118 @@
+module RoleBot where
+
+import ExpensePoolChain
+
+import qualified Daml.Trigger as T
+import qualified Daml.Trigger.Assert as TA
+import DA.Action
+import DA.Optional
+import qualified DA.List as List
+import Daml.Script
+import qualified DA.Map as Maps
+
+
+setUserRights : T.Trigger ()
+
+setUserRights = T.Trigger { 
+  initialize = pure()
+  , updateState = \msg -> pure ()
+  , rule = \p -> do
+      poolMember_contracts <- T.query @PoolMember -- Get contracts from current ACS/Transaction
+      
+      -- let poolMembers = map snd poolMember_contracts -- returns only the contract data for each member
+      
+      -- For each pool member contract:
+      result <- forA poolMember_contracts \(pId, pData) -> do
+        debug(pData)
+        -- Get the pool
+        dog <- T.dedupExercise pId GetPool
+        debug("cat")
+        
+      return ()
+
+  , registeredTemplates = T.AllInDar
+
+  , heartbeat = None
+}
+
+
+normalFlow = script do
+
+  org <- allocateParty "Org"
+  pool_member <- allocateParty "POOL_MEMBER"
+  alice <- allocateParty "Alice" 
+  bob <- allocateParty "Bob" 
+
+  let poolId = "1234"
+
+  poolCid <- submitMulti [org] [] do
+      createCmd Pool with 
+          org
+          poolMemberRole = pool_member
+          owner = alice
+          poolId = poolId
+          name = "Pool1"
+
+  
+  memberCid <- submitMulti [org, alice] [] do 
+    createCmd PoolMember with 
+      member = alice
+      org = org
+      poolId = poolId
+
+
+  let acsBuilder = TA.toACS memberCid
+
+  ((), cmds) <- TA.testRule setUserRights org [] acsBuilder Maps.empty ()
+
+  return ()
+
+
+
+
+
+
+
+--   template Role
+--     with
+--         org: Party -- Org that created the role thorugh some mgmt contract
+--         roleName: Text -- role name that will be used by the trigger
+--         -- some role key could be added as well
+--         manager: Party -- Party that will manage this role contract
+--         roleParty: Optional Party -- The party to be added after creation by the trigger bot
+--         actAs: Set Party -- Parties to grant rights to actAs the roleParty - used by trigger bot
+--         readAs: Set Party -- Parties to grant rights to readAs the roleParty - used by trigger bot
+--     where
+--         signatory org, manager
+--     -- various choices to manage the role
+
+
+-- template PoolFromRoles
+--     -- would be created from some super-mgmt contract
+--     with
+--         org: Party
+--         ownerRole: Party -- Party created by the Role contract for mgmt of the Pool
+--         memberRole: Party -- Party created by the Role contract for member read access of the pool
+--         poolId: Text -- Never changes
+--         name: Text
+--         -- ...other various pool attributes...
+--     where
+--         signatory org, ownerRole
+--         observer memberRole
+
+--         key (ownerRole, poolId): PoolKey
+--         maintainer key._1
+
+
+-- template PoolMemberFromRoles
+--     -- would be created from a PoolInvite contract
+--     with
+--         member: Party
+--         poolKey: PoolKey
+--         org: Party
+--         ownerRole: Party
+--     where
+--         signatory member, org, ownerRole -- assumes that ownerRole party is ~unique per pool.
+--         observer member
+--     -- The creation of this contract would be picked up by the trigger.
+--     -- the trigger would grant the member the ownerRole (readAs) from the Pool.

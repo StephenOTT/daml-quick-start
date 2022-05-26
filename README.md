@@ -4,7 +4,7 @@
 
 # Links:
 
-Namespacing your Daml Files: https://discuss.daml.com/t/managing-namespaces-in-daml/1984
+Namespacing your daml Files: https://discuss.daml.com/t/managing-namespaces-in-daml/1984
 
 `do` and `<-` arrows: what do they do and why: https://discuss.daml.com/t/if-you-are-not-100-sure-about-do-blocks-notation-and-return-you-should-read-this/968
 
@@ -19,6 +19,9 @@ When and where to add Attachments: https://discuss.daml.com/t/on-attachments-wha
 
 # Concepts
 
+1. https://docs.daml.com/daml/intro/10_Functional101.html
+
+1. When adding some deps like adding Daml.Trigger for the first time in VS Code, you have to restart VS code or else you get a build error in VS code.
 
 1. Signatory(ies) (of template) and Controller(s) (of choices) provide authorization
     1. Signatories can be used as the authorization of a choice: This allows you to keep passing the original signatory into the sub-contracts of the business flow.  Example: ProductDefinition > ProductDefInstanceCreator > ProductInstance.  Where instanceCreator is the "role" contract that provides the user the ability to create product instances.
@@ -27,6 +30,42 @@ When and where to add Attachments: https://discuss.daml.com/t/on-attachments-wha
 
 1. differences between `let` and `<-`: where the array is used as a computational builder in haskel.
 
-1. Reading the Stadnard Lib docs for DAML is fairly difficult as you have to understand the haskel data structues.  More examples for quick copy and paste would be helpful.  Such as how to use queryContractId or queryContractKey.
+1. Reading the Standard Lib docs for DAML is fairly difficult as you have to understand the haskel data structures.  More examples for quick copy and paste would be helpful.  Such as how to use queryContractId or queryContractKey.
 
-1. 
+1. **Assess your potential for Contract Contention:** What are the chances that there are multiple users trying to action choices on a single contract in parallel/at the same time?  If you have high likelihood of contention and strongly consider using a distributed contract approach.  If you have very low likelihood of contention then using a master-contract/aggregate contract approach is likely much less effort to build, maintain, and understand.
+   1. Having more contracts means distribution, less or no contention, many more active contracts, and smaller data size per contract.  Having a single contract means larger data size, less active contracts (more contracts you can prune over time and keep ledger smaller), and higher chance of contention (when applicable).
+
+
+1. Upgrading an Application means creating new versions of contracts:
+   1. see the docs on upgrading.  There can be large implications when dealing with large number of contracts
+   1. Contract extensions are really just creating more contract types / templates that reference the older version.  An extension is still tied to a version so will have some version management thoughts.
+   1. You can batch contract upgrades by collecting a list of contract IDs.
+
+
+1. active contract set (ACS)
+
+
+# Helpers
+
+
+## Code Comments
+
+```haskel
+-- this is a single line comment
+
+{-
+this is a
+multi-line comment
+-}
+```
+
+## Importing
+
+1. import example
+1. import a template from another module `import MyModule (MyTemplate)`
+1. import only a specific function name `import DA.List (someFuncName)`
+
+
+# fst and snd functions use with Map and common queries that return a truple (arg1, arg2)
+
+https://docs.daml.com/daml/stdlib/Prelude.html#function-da-internal-prelude-fst-55341
