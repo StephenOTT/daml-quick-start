@@ -69,3 +69,34 @@ multi-line comment
 # fst and snd functions use with Map and common queries that return a truple (arg1, arg2)
 
 https://docs.daml.com/daml/stdlib/Prelude.html#function-da-internal-prelude-fst-55341
+
+
+# Graph Structure
+
+TransactionTree:
+
+1. Transaction Id to one or more Event IDs
+1. WorkflowId one or more Transaction Ids
+1. CommandId to one or more Transaction Ids.
+1. Event Ids:
+   1. Parties: WitnessParties, signatories, observers, actingParties
+1. TemplateId > TransactionIds
+1. Exercise Contract Id > Exercise Result
+1. EventId > ChildEventIds (multiple possible)
+1. If event is consuming
+1. 
+
+
+## Group By:
+
+1. Transaction Id
+1. CommandId
+1. WorkflowId
+1. EffectiveAt Date, Hour, etc
+1. Signatories
+1. Observers
+1. Witnesses
+1. TemplateId
+1. Acting Parties
+1. Create vs Exercise
+1. Exercise Result Type
